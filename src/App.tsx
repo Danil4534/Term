@@ -75,7 +75,7 @@ function App() {
     { x: t[2], y: 0 },
   ];
 
-  const [criteria, setCriteria] = useState(DEFAULT_CRITERIA);
+  const [criteria, _] = useState(DEFAULT_CRITERIA);
   const [alternatives, setAlternatives] = useState(DEFAULT_ALTERNATIVES);
   const [weights, setWeights] = useState(defaultWeights);
   const [linguisticTerms, setLinguisticTerms] = useState(
@@ -180,25 +180,9 @@ function App() {
   };
 
   const rankings = computeRankings();
-  const generateGraphData = () => {
-    const step = 0.1;
-    const xValues: number[] = [];
-    for (let x = 0; x <= 8; x += step) xValues.push(x);
 
-    return xValues.map((x) => {
-      const point: Record<string, number | number> = { x };
-      Object.entries(linguisticTerms).forEach(([name, tri]) => {
-        let y = 0;
-        if (x < tri[0] || x > tri[2]) y = 0;
-        else if (x <= tri[1]) y = (x - tri[0]) / (tri[1] - tri[0]);
-        else y = (tri[2] - x) / (tri[2] - tri[1]);
-        point[name] = y;
-      });
-      return point;
-    });
-  };
 
-  const graphData = generateGraphData();
+
   return (
     <div className="w-full h-auto flex justify-center items-center">
       <div className="w-fit h-auto p-8">
