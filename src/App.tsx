@@ -81,12 +81,13 @@ function App() {
   const [linguisticTerms, setLinguisticTerms] = useState(
     INITIAL_LINGUISTIC_TERMS
   );
-  const [ratings, setRatings] = useState(() => {
+  const [ratings, setRatings] = useState<any>(() => {
     const terms = Object.keys(INITIAL_LINGUISTIC_TERMS);
     return alternatives.map(() =>
-      criteria.map(() => terms[Math.floor(Math.random() * terms.length)])
+      criteria.map(() => [terms[Math.floor(Math.random() * terms.length)]])
     );
   });
+
   const [lpr, setLpr] = useState<string>("neutral");
   const [newAlternative, setNewAlternative] = useState<string>("");
   const [showIntervals, setShowIntervals] = useState<boolean>(false);
@@ -104,12 +105,14 @@ function App() {
 
     setAlternatives([...alternatives, newAlternative]);
     const terms = Object.keys(linguisticTerms);
-    const newRatingsRow = criteria.map(
-      () => terms[Math.floor(Math.random() * terms.length)]
-    );
+    const newRatingsRow = criteria.map(() => [
+      terms[Math.floor(Math.random() * terms.length)],
+    ]);
+
     setRatings([...ratings, newRatingsRow]);
     setNewAlternative("");
   };
+
 
   const addLinguisticTerm = (name: string, tri: Triangle) => {
     if (!name.trim()) return alert("Коротке ім’я обов’язкове");
@@ -139,9 +142,9 @@ function App() {
     setLinguisticTerms(normalized);
   };
 
-  const setRating = (altIndex: number, critIndex: number, term: string) => {
-    const newRatings = ratings.map((row) => row.slice());
-    newRatings[altIndex][critIndex] = term;
+  const setRating = (altIndex: number, critIndex: number, selected: string[]) => {
+    const newRatings = ratings.map((row: any) => row.slice());
+    newRatings[altIndex][critIndex] = selected;
     setRatings(newRatings);
   };
 
@@ -156,13 +159,22 @@ function App() {
   const aggregateAlternative = (altIndex: number): Triangle => {
     let agg: Triangle = [0, 0, 0];
     for (let j = 0; j < criteria.length; j++) {
-      const termName = ratings[altIndex][j];
-      const tri = linguisticTerms[termName];
-      const scaled = scaleTriangle(tri, weights[j]);
+      const termNames = ratings[altIndex][j];
+      const triangles = termNames.map((t: any) => linguisticTerms[t]);
+
+
+      const avgTri: Triangle = [
+        triangles.reduce((s: any, t: any) => s + t[0], 0) / triangles.length,
+        triangles.reduce((s: any, t: any) => s + t[1], 0) / triangles.length,
+        triangles.reduce((s: any, t: any) => s + t[2], 0) / triangles.length,
+      ];
+
+      const scaled = scaleTriangle(avgTri, weights[j]);
       agg = addTriangles(agg, scaled);
     }
     return agg;
   };
+
 
   const scoreFromLpr = (tri: Triangle) => {
     if (lpr === "pessimistic") return tri[0];
@@ -185,7 +197,7 @@ function App() {
 
   return (
     <div className="w-full h-auto flex justify-center items-center">
-      <div className="w-fit h-auto p-8">
+      <div className="w-full h-auto p-8">
         <h1 className="text-lg font-bold text-gray-500 mb-4">
           Вибір найкращого смартфона з використанням нечітких оцінок
         </h1>
@@ -254,8 +266,8 @@ function App() {
         </div>
 
         {/* Таблиця трикутних оцінок */}
-        <div className="mb-6 overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500 border-none rounded-2xl max-w-5xl">
+        <div className="mb-6 overflow-x-auto w-full">
+          <table className="w-full text-sm text-left text-gray-500 border-none rounded-2xl">
             <thead className="text-gray-700">
               <tr>
                 <th className="p-2">Смартфон</th>
@@ -266,28 +278,39 @@ function App() {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="w-full">
               {alternatives.map((alt, i) => (
-                <tr key={alt} className="w-fit">
+                <tr key={alt} className="w-full">
                   <td className="p-2 font-medium">{alt}</td>
                   {criteria.map((_, j) => (
                     <td key={j} className="p-2">
-                      <select
-                        value={ratings[i][j]}
-                        onChange={(e) => setRating(i, j, e.target.value)}
-                        className="select"
-                      >
+                      <div className="flex flex-col gap-1">
                         {Object.keys(linguisticTerms).map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
+                          <label key={t} className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={ratings[i]?.[j]?.includes(t) || false}
+                              onChange={(e) => {
+                                const selected = ratings[i]?.[j] || [];
+                                let newSelected: string[];
+                                if (e.target.checked) {
+                                  newSelected = [...selected, t];
+                                } else {
+                                  newSelected = selected.filter((val: string) => val !== t);
+                                }
+                                setRating(i, j, newSelected);
+                              }}
+                            />
+                            <span>{t}</span>
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
+
           </table>
         </div>
 
@@ -349,9 +372,9 @@ function App() {
 
         {/* Інтервальні оцінки */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-3">Інтервальні оцінки</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500 border-none rounded-2xl max-w-5xl">
+          <h2 className="text-xl font-semibold mb-3">{showIntervals ? "Інтервальні Оцінки" : showTrapeze ? "Трапеційні оцінки" : "Трикутні оцінки"}</h2>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-sm text-left text-gray-500 border-none rounded-2xl">
               <thead className="text-gray-700">
                 <tr>
                   <th className="p-2">Смартфон</th>
@@ -362,34 +385,52 @@ function App() {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="w-full">
                 {alternatives.map((alt, i) => (
                   <tr key={alt} className="w-fit">
                     <td className="p-2 font-medium">{alt}</td>
                     {criteria.map((_, j) => {
-                      const tri = linguisticTerms[ratings[i][j]];
+                      const selectedTerms = ratings[i][j];
+                      if (!selectedTerms || selectedTerms.length === 0) {
+                        return <td key={j} className="p-2">—</td>;
+                      }
+
+                      const triangles = selectedTerms
+                        .map((t: string) => linguisticTerms[t])
+                        .filter(Boolean);
+
+                      // Среднее арифметическое треугольников
+                      const avgTri: Triangle = [
+                        triangles.reduce((s: any, t: any) => s + t[0], 0) / triangles.length,
+                        triangles.reduce((s: any, t: any) => s + t[1], 0) / triangles.length,
+                        triangles.reduce((s: any, t: any) => s + t[2], 0) / triangles.length,
+                      ];
+
                       if (showTrapeze) {
-                        const trap = triangleToTrapeze(tri);
+                        const trap = triangleToTrapeze(avgTri);
                         return (
                           <td key={j} className="p-2">
                             [{trap.map((x) => x.toFixed(2)).join(", ")}]
                           </td>
                         );
                       }
+
                       if (showIntervals) {
-                        const interval = triangleToInterval(tri);
+                        const interval = triangleToInterval(avgTri);
                         return (
                           <td key={j} className="p-2">
                             [{interval[0].toFixed(2)}, {interval[1].toFixed(2)}]
                           </td>
                         );
                       }
+
                       return (
                         <td key={j} className="p-2">
-                          [{tri.map((x) => x.toFixed(2)).join(", ")}]
+                          [{avgTri.map((x) => x.toFixed(2)).join(", ")}]
                         </td>
                       );
                     })}
+
                   </tr>
                 ))}
               </tbody>
